@@ -5,7 +5,7 @@ const size = 25
 const gap = 1.1
 const middleCubeColour = 40
 
-const cameraSpeed = 20
+const cameraSpeed = 0.5
 let moveSpeed = 5
 
 let showAxis = false
@@ -14,8 +14,9 @@ let showAxis = false
 const keyStates = {}
 /** @type {{index: number; direction: number; axis: number}[]} */
 const moves = []
+let cameraRotationMatrix = Matrix4.identity()
 
-for (let i = 0; i < 50; ++i) {
+for (let i = 0; i < 1; ++i) {
 	moves.push({
 		index: Math.floor(Math.random() * cubeDimension),
 		direction: Math.floor(Math.random() * 2) * 2 - 1,
@@ -452,10 +453,10 @@ class Main {
 		}
 
 		/**
-		 * @param {[number, number]} cameraAnglesInRadians 
+		 * @param {[number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number]} cameraMatrix 
 		 * @param {{position: [number, number, number, number]; rotation: [number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number]}[]} rubiks
 		 */
-		drawScene(rubiks, cameraAnglesInRadians) {
+		drawScene(rubiks, cameraMatrix) {
 				this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height)
 
 				this.gl.clearColor(0, 0, 0, 1)
@@ -476,11 +477,10 @@ class Main {
 				const projectionMatrix = Matrix4.perspective(
 						fieldOfViewInRadians, this.gl.canvas.width / this.gl.canvas.height, 1, 2000
 				)
-				let cameraMatrix = Matrix4.xRotation(cameraAnglesInRadians[0])
-				cameraMatrix = Matrix4.yRotate(cameraMatrix, cameraAnglesInRadians[1])
-				cameraMatrix = Matrix4.translate(cameraMatrix, 0, 0, radius * 2)
+				
+				let cameraMatrixMoved = Matrix4.translate(cameraMatrix, 0, 0, radius * 2)
 
-				const viewMatrix = Matrix4.inverse(cameraMatrix)
+				const viewMatrix = Matrix4.inverse(cameraMatrixMoved)
 				const viewProjectionMatrix = Matrix4.multiply(projectionMatrix, viewMatrix)
 				
 
@@ -650,6 +650,16 @@ window.addEventListener("keydown", (e) => {
 			direction = -1
 		}
 
+		// Make this based on camera
+		// Get the direction the camera is looking at to determine the axis and rotation
+
+		// Got to be careful around the 90 deg axis as stuff flips
+		let xDegrees = Math.atan2(cameraRotationMatrix[9], cameraRotationMatrix[10])
+		let yDegrees = Math.atan2(-cameraRotationMatrix[8], Math.sqrt(Math.pow(cameraRotationMatrix[9], 2) + Math.pow(cameraRotationMatrix[10], 2)))
+		let zDegrees = Math.atan2(cameraRotationMatrix[4], cameraRotationMatrix[0])
+
+		// console.log(xDegrees * 180 / Math.PI, yDegrees * 180 / Math.PI, zDegrees * 180 / Math.PI)
+
 		let axis = 0
 		if (e.key === "Control" || keyStates["Control"]) {
 			axis = 1
@@ -735,8 +745,6 @@ window.onload = () => {
 		})
 	}
 
-	let degrees = [0, 0]
-
 	let animationDegrees = -1
 
 	let lastTime = 0
@@ -754,18 +762,25 @@ window.onload = () => {
 
 		lastTime = time
 
-		if (keyStates["w"]) {
-				degrees[0] += cameraSpeed / delta
+		if (keyStates["w"] || keyStates["W"]) {
+			cameraRotationMatrix = Matrix4.xRotate(cameraRotationMatrix, cameraSpeed / delta)
 		}
-		if (keyStates["s"]) {
-				degrees[0] -= cameraSpeed / delta
+		if (keyStates["s"] || keyStates["S"]) {
+			cameraRotationMatrix = Matrix4.xRotate(cameraRotationMatrix, -cameraSpeed / delta)
 		}
-		if (keyStates["a"]) {
-				degrees[1] += cameraSpeed / delta
+		if (keyStates["a"] || keyStates["A"]) {
+			cameraRotationMatrix = Matrix4.yRotate(cameraRotationMatrix, cameraSpeed / delta)
 		}
-		if (keyStates["d"]) {
-				degrees[1] -= cameraSpeed / delta
+		if (keyStates["d"] || keyStates["D"]) {
+			cameraRotationMatrix = Matrix4.yRotate(cameraRotationMatrix, -cameraSpeed / delta)
 		}
+		if (keyStates["q"] || keyStates["Q"]) {
+			cameraRotationMatrix = Matrix4.zRotate(cameraRotationMatrix, cameraSpeed / delta)
+		}
+		if (keyStates["e"] || keyStates["E"]) {
+			cameraRotationMatrix = Matrix4.zRotate(cameraRotationMatrix, -cameraSpeed / delta)
+		}
+
 
 		if (animationDegrees === -1) {
 			animationDegrees = 0
@@ -779,9 +794,7 @@ window.onload = () => {
 				if (animationDegrees >= Math.PI / 2) {
 					step = Math.PI / 2 - animationDegrees
 					animationDegrees = -1
-					const tmpMove = moves.shift()
-					if (tmpMove === undefined) throw new Error("Unreachable")
-					move = tmpMove
+					moves.shift()
 				} else {
 					animationDegrees += step
 				}
@@ -832,13 +845,18 @@ window.onload = () => {
 			}
 		}
 				
-		main.drawScene(rubiksCube, [
-			degrees[0] * Math.PI / 180,
-			degrees[1] * Math.PI / 180
-		])
+		main.drawScene(rubiksCube, cameraRotationMatrix)
 	
 	}
 	
 	loop(0)
 
 }
+
+
+/*
+TODO
+
+Make move based on camera angle
+
+*/
