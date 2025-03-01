@@ -1,21 +1,31 @@
 // @ts-check
 
-const cubeDimension = 5
-const size = 30
+const cubeDimension = 3
+const size = 25
 const gap = 1.1
 const middleCubeColour = 40
+
+const cameraSpeed = 20
+let moveSpeed = 5
+
+let showAxis = false
+
 
 const keyStates = {}
 /** @type {{index: number; direction: number; axis: number}[]} */
 const moves = []
 
+for (let i = 0; i < 100; ++i) {
+	moves.push({
+		index: Math.floor(Math.random() * cubeDimension),
+		direction: Math.floor(Math.random() * 2) * 2 - 1,
+		axis: Math.floor(Math.random() * 3),
+	})
+}
+
 class Main {
 		/** @type {HTMLCanvasElement} */
 		canvas
-		// /** @type {number} */
-		// width
-		// /** @type {number} */
-		// height
 
 		/** @type {WebGLRenderingContext} */
 		gl
@@ -245,7 +255,7 @@ class Main {
 				}
 
 				// deprecated
-				this.gl.bindBuffer(this.gl.ARRAY_BUFFER, colourBuffer)
+				this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colourBuffer)
 				this.gl.bufferData(
 					gl.ARRAY_BUFFER,
 					new Uint8Array(colourBufferArray(true, true, true, true, true, true)), gl.STATIC_DRAW
@@ -443,7 +453,7 @@ class Main {
 
 		/**
 		 * @param {[number, number]} cameraAnglesInRadians 
-		 * @param {{position: [number, number, number, number]; rotation: [number, number, number, number]}[]} rubiks
+		 * @param {{position: [number, number, number, number]; rotation: [number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number]}[]} rubiks
 		 */
 		drawScene(rubiks, cameraAnglesInRadians) {
 				this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height)
@@ -461,23 +471,55 @@ class Main {
 
 				this.gl.enableVertexAttribArray(this.colourLocation)
 				
-
-				const radius = 300
+				const radius = 100
 				const fieldOfViewInRadians = Math.PI / 3
 				const projectionMatrix = Matrix4.perspective(
 						fieldOfViewInRadians, this.gl.canvas.width / this.gl.canvas.height, 1, 2000
 				)
 				let cameraMatrix = Matrix4.xRotation(cameraAnglesInRadians[0])
 				cameraMatrix = Matrix4.yRotate(cameraMatrix, cameraAnglesInRadians[1])
-				cameraMatrix = Matrix4.translate(cameraMatrix, 0, 100, radius * 2)
+				cameraMatrix = Matrix4.translate(cameraMatrix, 0, 0, radius * 2)
 
 				const viewMatrix = Matrix4.inverse(cameraMatrix)
 				const viewProjectionMatrix = Matrix4.multiply(projectionMatrix, viewMatrix)
 				
+
+				if (showAxis === true) {
+					const axisCrossSize = 1
+					{
+						this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colourBuffer)
+						this.gl.vertexAttribPointer(this.colourLocation, 3, this.gl.UNSIGNED_BYTE, true, 0, 0)
+						let modelMatrix = Matrix4.scale(Matrix4.identity(), 1000, axisCrossSize, axisCrossSize)
+						modelMatrix = Matrix4.translate(modelMatrix, 0, -0.5, -0.5)
+						let matrix = Matrix4.multiply(viewProjectionMatrix, modelMatrix)
+						this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix)
+						this.gl.drawArrays(this.gl.TRIANGLES, 0, 36)
+					}
+	
+					{
+						this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colourBuffer)
+						this.gl.vertexAttribPointer(this.colourLocation, 3, this.gl.UNSIGNED_BYTE, true, 0, 0)
+						let modelMatrix = Matrix4.scale(Matrix4.identity(), axisCrossSize, 1000, axisCrossSize)
+						modelMatrix = Matrix4.translate(modelMatrix, -0.5, 0, -0.5 )
+						let matrix = Matrix4.multiply(viewProjectionMatrix, modelMatrix)
+						this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix)
+						this.gl.drawArrays(this.gl.TRIANGLES, 0, 36)
+					}
+	
+					{
+						this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colourBuffer)
+						this.gl.vertexAttribPointer(this.colourLocation, 3, this.gl.UNSIGNED_BYTE, true, 0, 0)
+						let modelMatrix = Matrix4.scale(Matrix4.identity(), axisCrossSize, axisCrossSize, 1000)
+						modelMatrix = Matrix4.translate(modelMatrix, -0.5, -0.5, 0)
+						let matrix = Matrix4.multiply(viewProjectionMatrix, modelMatrix)
+						this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix)
+						this.gl.drawArrays(this.gl.TRIANGLES, 0, 36)
+					}
+				}
+
+
+
 				for (let i = 0; i < rubiks.length; ++i) {
-
-
-					// this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colourBuffer)
 					if (i === 0) {
 						this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colourBuffers[0])
 					} else if (i < cubeDimension - 1) {
@@ -537,16 +579,9 @@ class Main {
 
 					let modelMatrix = Matrix4.scale(Matrix4.identity(), size, size, size)
 
-					modelMatrix = Matrix4.translate(modelMatrix, rubiks[i].position[0] - 0.5, rubiks[i].position[1] - 0.5, rubiks[i].position[2] - 0.5)
-					// The order of this is the key I think to fixing the bug
-					modelMatrix = Matrix4.xRotate(modelMatrix, rubiks[i].rotation[0])
-					modelMatrix = Matrix4.zRotate(modelMatrix, rubiks[i].rotation[2])
-					modelMatrix = Matrix4.yRotate(modelMatrix, rubiks[i].rotation[1])
-					
-					modelMatrix = Matrix4.translate(modelMatrix, -rubiks[i].position[0] - 0.5, -rubiks[i].position[1] - 0.5, -rubiks[i].position[2] - 0.5)
-					
-					modelMatrix = Matrix4.translate(modelMatrix, rubiks[i].position[0], rubiks[i].position[1], rubiks[i].position[2])
-
+					modelMatrix = Matrix4.translate(modelMatrix, rubiks[i].position[0] + 0.5, rubiks[i].position[1] + 0.5, rubiks[i].position[2] + 0.5)
+					modelMatrix = Matrix4.multiply(modelMatrix, rubiks[i].rotation)
+					modelMatrix = Matrix4.translate(modelMatrix, -0.5, -0.5, -0.5)
 
 					let matrix = Matrix4.multiply(viewProjectionMatrix, modelMatrix)
 
@@ -679,7 +714,7 @@ window.onload = () => {
 
 	const main = new Main(canvas, window.innerWidth, window.innerHeight, vertexShaderSource, fragmentShaderSource)
 
-	/** @type {{position: [number, number, number, number]; rotation: [number, number, number, number]}[]} */
+	/** @type {{position: [number, number, number, number]; rotation: [number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number]}[]} */
 		let rubiksCube = []
 	for (let i = 0; i < Math.pow(cubeDimension, 3); ++i) {
 
@@ -694,11 +729,9 @@ window.onload = () => {
 		rubiksCube.push({
 			position: [
 				x, y, z,
-				1
+				0
 			],
-			rotation: [
-				0, 0, 0, 1
-			]
+			rotation: Matrix4.identity()
 		})
 	}
 
@@ -722,16 +755,16 @@ window.onload = () => {
 		lastTime = time
 
 		if (keyStates["w"]) {
-				degrees[0] += delta / 10
+				degrees[0] += cameraSpeed / delta
 		}
 		if (keyStates["s"]) {
-				degrees[0] -= delta / 10
+				degrees[0] -= cameraSpeed / delta
 		}
 		if (keyStates["a"]) {
-				degrees[1] += delta / 10
+				degrees[1] += cameraSpeed / delta
 		}
 		if (keyStates["d"]) {
-				degrees[1] -= delta / 10
+				degrees[1] -= cameraSpeed / delta
 		}
 
 		if (animationDegrees === -1) {
@@ -742,8 +775,7 @@ window.onload = () => {
 
 			if (move !== undefined) {
 				
-				// let step = delta / 170
-				let step = delta / 1700
+				let step = moveSpeed / delta
 				if (animationDegrees >= Math.PI / 2) {
 					step = Math.PI / 2 - animationDegrees
 					animationDegrees = -1
@@ -755,43 +787,48 @@ window.onload = () => {
 				}
 
 				for (let i = 0; i < Math.pow(cubeDimension, 3); ++i) {
-					const t = -0.5 * gap
-
-					/** @type {[number, number ,number, number]} */
-					let pos = [
-						rubiksCube[i].position[0] - t,
-						rubiksCube[i].position[1] - t,
-						rubiksCube[i].position[2] - t,
-						1
-					]
-
-					/** @type {[number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number] | undefined} */
-					let matrix = undefined
-
 					const coord = gap * cubeDimension / 2 - gap * (cubeDimension - move.index)
 					if (rubiksCube[i].position[move.axis] < coord + 0.5 && rubiksCube[i].position[move.axis] > coord - 0.5) {
-						if (move.axis === 0) {
-							matrix = Matrix4.xRotation(-move.direction * step)
-						} else if (move.axis === 1) {
-							matrix = Matrix4.yRotation(-move.direction * step)
-						} else if (move.axis === 2) {
-							matrix = Matrix4.zRotation(-move.direction * step)
-						}
-					}
+						const t = -0.5 * gap
 
-					if (matrix !== undefined) {
-						rubiksCube[i].rotation[move.axis] += move.direction * step
-						pos = Matrix4.multiplyVector(pos, matrix)
-						
-						rubiksCube[i].position = [
-							pos[0] + t,
-							pos[1] + t,
-							pos[2] + t,
+						/** @type {[number, number ,number, number]} */
+						let pos = [
+							rubiksCube[i].position[0] - t,
+							rubiksCube[i].position[1] - t,
+							rubiksCube[i].position[2] - t,
 							1,
 						]
+
+						/** @type {[number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number] | undefined} */
+						let matrix = undefined
+						let matrixReversed = undefined
+						if (move.axis === 0) {
+							matrix = Matrix4.xRotation(move.direction * step)
+							matrixReversed = Matrix4.xRotation(-move.direction * step)
+						} else if (move.axis === 1) {
+							matrix = Matrix4.yRotation(move.direction * step)
+							matrixReversed = Matrix4.yRotation(-move.direction * step)
+						} else if (move.axis === 2) {
+							matrix = Matrix4.zRotation(move.direction * step)
+							matrixReversed = Matrix4.zRotation(-move.direction * step)
+						}
+						
+						if (matrix !== undefined && matrixReversed !== undefined) {
+	
+							rubiksCube[i].rotation = Matrix4.multiply(matrixReversed, rubiksCube[i].rotation)
+
+							pos = Matrix4.multiplyVector(pos, matrix)
+							rubiksCube[i].position = [
+								pos[0] + t,
+								pos[1] + t,
+								pos[2] + t,
+								1,
+							]
+						}
 					}
 				}
-				
+			} else {
+				moveSpeed = 1
 			}
 		}
 				
