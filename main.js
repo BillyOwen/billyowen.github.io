@@ -15,7 +15,7 @@ const keyStates = {}
 /** @type {{index: number; direction: number; axis: number}[]} */
 const moves = []
 
-for (let i = 0; i < 100; ++i) {
+for (let i = 0; i < 50; ++i) {
 	moves.push({
 		index: Math.floor(Math.random() * cubeDimension),
 		direction: Math.floor(Math.random() * 2) * 2 - 1,
@@ -646,12 +646,12 @@ window.addEventListener("keyup", (e) => {
 window.addEventListener("keydown", (e) => {
 	if (!keyStates[e.key]) {
 		let direction = 1
-		if (e.key === "Control" || keyStates["Control"]) {
+		if (e.key === "Shift" || keyStates["Shift"]) {
 			direction = -1
 		}
 
 		let axis = 0
-		if (e.key === "Shift" || keyStates["Shift"]) {
+		if (e.key === "Control" || keyStates["Control"]) {
 			axis = 1
 		}
 
