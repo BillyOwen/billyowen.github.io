@@ -8,15 +8,12 @@ const middleCubeColour = 40
 const cameraSpeed = 0.5
 let moveSpeed = 5
 
-let showAxis = false
-
-
 const keyStates = {}
 /** @type {{index: number; direction: number; axis: number}[]} */
 const moves = []
 let cameraRotationMatrix = Matrix4.identity()
 
-for (let i = 0; i < 1; ++i) {
+for (let i = 0; i < 30; ++i) {
 	moves.push({
 		index: Math.floor(Math.random() * cubeDimension),
 		direction: Math.floor(Math.random() * 2) * 2 - 1,
@@ -256,10 +253,12 @@ class Main {
 				}
 
 				// deprecated
+				const allArray = new Uint8Array(3 * 6 * 6)
+				allArray.fill(255)
 				this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colourBuffer)
 				this.gl.bufferData(
 					gl.ARRAY_BUFFER,
-					new Uint8Array(colourBufferArray(true, true, true, true, true, true)), gl.STATIC_DRAW
+					allArray, gl.STATIC_DRAW
 				)
 
 				// bottom left back
@@ -453,10 +452,9 @@ class Main {
 		}
 
 		/**
-		 * @param {[number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number]} cameraMatrix 
 		 * @param {{position: [number, number, number, number]; rotation: [number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number]}[]} rubiks
 		 */
-		drawScene(rubiks, cameraMatrix) {
+		drawScene(rubiks) {
 				this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height)
 
 				this.gl.clearColor(0, 0, 0, 1)
@@ -473,51 +471,15 @@ class Main {
 				this.gl.enableVertexAttribArray(this.colourLocation)
 				
 				const radius = 100
-				const fieldOfViewInRadians = Math.PI / 3
+				const fieldOfViewInRadians = Math.PI * 2 / 5
 				const projectionMatrix = Matrix4.perspective(
-						fieldOfViewInRadians, this.gl.canvas.width / this.gl.canvas.height, 1, 2000
+					fieldOfViewInRadians, this.gl.canvas.width / this.gl.canvas.height, 1, 2000
 				)
 				
-				let cameraMatrixMoved = Matrix4.translate(cameraMatrix, 0, 0, radius * 2)
+				let cameraMatrixMoved = Matrix4.translate(cameraRotationMatrix, 0, 0, radius * 2)
 
 				const viewMatrix = Matrix4.inverse(cameraMatrixMoved)
 				const viewProjectionMatrix = Matrix4.multiply(projectionMatrix, viewMatrix)
-				
-
-				if (showAxis === true) {
-					const axisCrossSize = 1
-					{
-						this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colourBuffer)
-						this.gl.vertexAttribPointer(this.colourLocation, 3, this.gl.UNSIGNED_BYTE, true, 0, 0)
-						let modelMatrix = Matrix4.scale(Matrix4.identity(), 1000, axisCrossSize, axisCrossSize)
-						modelMatrix = Matrix4.translate(modelMatrix, 0, -0.5, -0.5)
-						let matrix = Matrix4.multiply(viewProjectionMatrix, modelMatrix)
-						this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix)
-						this.gl.drawArrays(this.gl.TRIANGLES, 0, 36)
-					}
-	
-					{
-						this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colourBuffer)
-						this.gl.vertexAttribPointer(this.colourLocation, 3, this.gl.UNSIGNED_BYTE, true, 0, 0)
-						let modelMatrix = Matrix4.scale(Matrix4.identity(), axisCrossSize, 1000, axisCrossSize)
-						modelMatrix = Matrix4.translate(modelMatrix, -0.5, 0, -0.5 )
-						let matrix = Matrix4.multiply(viewProjectionMatrix, modelMatrix)
-						this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix)
-						this.gl.drawArrays(this.gl.TRIANGLES, 0, 36)
-					}
-	
-					{
-						this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colourBuffer)
-						this.gl.vertexAttribPointer(this.colourLocation, 3, this.gl.UNSIGNED_BYTE, true, 0, 0)
-						let modelMatrix = Matrix4.scale(Matrix4.identity(), axisCrossSize, axisCrossSize, 1000)
-						modelMatrix = Matrix4.translate(modelMatrix, -0.5, -0.5, 0)
-						let matrix = Matrix4.multiply(viewProjectionMatrix, modelMatrix)
-						this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix)
-						this.gl.drawArrays(this.gl.TRIANGLES, 0, 36)
-					}
-				}
-
-
 
 				for (let i = 0; i < rubiks.length; ++i) {
 					if (i === 0) {
@@ -650,23 +612,83 @@ window.addEventListener("keydown", (e) => {
 			direction = -1
 		}
 
-		// Make this based on camera
-		// Get the direction the camera is looking at to determine the axis and rotation
+		const radius = 100
+		const fieldOfViewInRadians = Math.PI / 3
+		const projectionMatrix = Matrix4.perspective(
+				fieldOfViewInRadians, window.innerWidth / window.innerHeight, 1, 2000
+		)
+		
+		let cameraMatrixMoved = Matrix4.translate(cameraRotationMatrix, 0, 0, radius * 2)
 
-		// Got to be careful around the 90 deg axis as stuff flips
-		let xDegrees = Math.atan2(cameraRotationMatrix[9], cameraRotationMatrix[10])
-		let yDegrees = Math.atan2(-cameraRotationMatrix[8], Math.sqrt(Math.pow(cameraRotationMatrix[9], 2) + Math.pow(cameraRotationMatrix[10], 2)))
-		let zDegrees = Math.atan2(cameraRotationMatrix[4], cameraRotationMatrix[0])
-
-		// console.log(xDegrees * 180 / Math.PI, yDegrees * 180 / Math.PI, zDegrees * 180 / Math.PI)
+		const viewMatrix = Matrix4.inverse(cameraMatrixMoved)
+		const viewProjectionMatrix = Matrix4.multiply(projectionMatrix, viewMatrix)
 
 		let axis = 0
+		
+		/** @type {["+" | "-", "x" | "y" | "z", "+" | "-", "x" | "y" | "z", "x" | "y" | "z"]}*/
+		let facing = ["-", "x", "-", "x", "z"]
+	
+		if (Math.abs(viewProjectionMatrix[2]) >= Math.abs(viewProjectionMatrix[6]) && Math.abs(viewProjectionMatrix[2]) >= Math.abs(viewProjectionMatrix[10])) {
+			// x
+			if (viewProjectionMatrix[2] <= 0) {
+				facing[0] = "+"
+			} else {
+				facing[0] = "-"
+			}
+			facing[1] = "x"
+		}
+
+		if (Math.abs(viewProjectionMatrix[6]) >= Math.abs(viewProjectionMatrix[2]) && Math.abs(viewProjectionMatrix[6]) >= Math.abs(viewProjectionMatrix[10])) {
+			// y
+			if (viewProjectionMatrix[6] <= 0) {
+				facing[0] = "+"
+			} else {
+				facing[0] = "-"
+			}
+			facing[1] = "y"
+		}
+
+		if (Math.abs(viewProjectionMatrix[10]) >= Math.abs(viewProjectionMatrix[2]) && Math.abs(viewProjectionMatrix[10]) >= Math.abs(viewProjectionMatrix[6])) {
+			// z
+			if (viewProjectionMatrix[10] <= 0) {
+				facing[0] = "+"
+			} else {
+				facing[0] = "-"
+			}
+			facing[1] = "z"
+		}
+
+		if (Math.abs(viewProjectionMatrix[1]) >= Math.abs(viewProjectionMatrix[5]) && Math.abs(viewProjectionMatrix[1]) >= Math.abs(viewProjectionMatrix[9])) {
+			if (viewProjectionMatrix[1] <= 0) {
+				facing[2] = "+"
+			} else {
+				facing[2] = "-"
+			}
+			facing[3] = "x"
+		} else if (Math.abs(viewProjectionMatrix[5]) >= Math.abs(viewProjectionMatrix[1]) && Math.abs(viewProjectionMatrix[5]) >= Math.abs(viewProjectionMatrix[9])) {
+			if (viewProjectionMatrix[5] > 0) {
+				facing[2] = "+"
+			} else {
+				facing[2] = "-"
+			}
+			facing[3] = "y"
+		} else if (Math.abs(viewProjectionMatrix[9]) >= Math.abs(viewProjectionMatrix[1]) && Math.abs(viewProjectionMatrix[9]) >= Math.abs(viewProjectionMatrix[5])) {
+			if (viewProjectionMatrix[9] <= 0) {
+				facing[2] = "+"
+			} else {
+				facing[2] = "-"
+			}
+			facing[3] = "z"
+		}
+
+		console.log(facing)
+
 		if (e.key === "Control" || keyStates["Control"]) {
-			axis = 1
+			facing[4] = "x"
 		}
 
 		if (e.key === "Alt" || keyStates["Alt"]) {
-			axis = 2
+			facing[4] = "y"
 		}
 
 		if (e.key === "0" || e.key === "1" || e.key === "2" || e.key === "3"
@@ -700,6 +722,61 @@ window.addEventListener("keydown", (e) => {
 
 			if (index >= cubeDimension) {
 				return
+			}
+
+			if (facing[1] === "z") {
+				if (facing[3] === "y") {
+					axis = 0
+					if (facing[4] === "x") axis = 1
+					if (facing[4] === "y") axis = 2
+				}
+	
+				if (facing[3] === "x") {
+					axis = 1
+					if (facing[4] === "x") axis = 0
+				}
+
+				if (facing[0] !== facing[2]) {
+					index = cubeDimension - 1 - index
+					direction *= -1
+				}
+			}
+
+			if (facing[1] === "x") {
+				if (facing[3] === "y") {
+					axis = 2
+				}
+
+				if (facing[3] === "z") {
+					axis = 1
+				}
+
+				if (facing[0] === facing[2]) {
+					index = cubeDimension - 1 - index
+					direction *= -1
+				}
+			}
+
+			if (facing[1] === "y") {
+				if (facing[3] === "z") {
+					axis = 0
+				}
+
+				if (facing[3] === "x") {
+					axis = 2
+				}
+
+				if (
+					(facing[0] === facing[2] && facing[3] === "x") ||
+					(facing[0] !== facing[2] && facing[3] === "z")
+				) {
+					index = cubeDimension - 1 - index
+					direction *= -1
+				}
+			}
+
+			if (facing[4] === "y") {
+				index = cubeDimension - 1 - index
 			}
 
 			moves.push({
@@ -763,10 +840,10 @@ window.onload = () => {
 		lastTime = time
 
 		if (keyStates["w"] || keyStates["W"]) {
-			cameraRotationMatrix = Matrix4.xRotate(cameraRotationMatrix, cameraSpeed / delta)
+			cameraRotationMatrix = Matrix4.xRotate(cameraRotationMatrix, -cameraSpeed / delta)
 		}
 		if (keyStates["s"] || keyStates["S"]) {
-			cameraRotationMatrix = Matrix4.xRotate(cameraRotationMatrix, -cameraSpeed / delta)
+			cameraRotationMatrix = Matrix4.xRotate(cameraRotationMatrix, cameraSpeed / delta)
 		}
 		if (keyStates["a"] || keyStates["A"]) {
 			cameraRotationMatrix = Matrix4.yRotate(cameraRotationMatrix, cameraSpeed / delta)
@@ -780,7 +857,6 @@ window.onload = () => {
 		if (keyStates["e"] || keyStates["E"]) {
 			cameraRotationMatrix = Matrix4.zRotate(cameraRotationMatrix, -cameraSpeed / delta)
 		}
-
 
 		if (animationDegrees === -1) {
 			animationDegrees = 0
@@ -845,18 +921,10 @@ window.onload = () => {
 			}
 		}
 				
-		main.drawScene(rubiksCube, cameraRotationMatrix)
+		main.drawScene(rubiksCube)
 	
 	}
 	
 	loop(0)
 
 }
-
-
-/*
-TODO
-
-Make move based on camera angle
-
-*/
