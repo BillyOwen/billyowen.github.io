@@ -600,15 +600,23 @@ class Main {
 		}
 }
 
-
+document.addEventListener("visibilitychange", (e) => {
+	for (const key of Object.keys(keyStates)) {
+		keyStates[key] = false
+	}
+})
 
 window.addEventListener("keyup", (e) => {
 		keyStates[e.key] = false
 })
+
 window.addEventListener("keydown", (e) => {
+
 	if (!keyStates[e.key]) {
+		keyStates[e.key] = true
+
 		let direction = 1
-		if (e.key === "Shift" || keyStates["Shift"]) {
+		if (keyStates["Shift"]) {
 			direction = -1
 		}
 
@@ -625,8 +633,8 @@ window.addEventListener("keydown", (e) => {
 
 		let axis = 0
 		
-		/** @type {["+" | "-", "x" | "y" | "z", "+" | "-", "x" | "y" | "z", "x" | "y" | "z"]}*/
-		let facing = ["-", "x", "-", "x", "z"]
+		/** @type {["+" | "-", "x" | "y" | "z", "+" | "-", "x" | "y" | "z"]}*/
+		let facing = ["-", "x", "-", "x"]
 	
 		if (Math.abs(viewProjectionMatrix[2]) >= Math.abs(viewProjectionMatrix[6]) && Math.abs(viewProjectionMatrix[2]) >= Math.abs(viewProjectionMatrix[10])) {
 			// x
@@ -681,15 +689,17 @@ window.addEventListener("keydown", (e) => {
 			facing[3] = "z"
 		}
 
-		console.log(facing)
-
-		if (e.key === "Control" || keyStates["Control"]) {
-			facing[4] = "x"
+		let control = false
+		if (keyStates["Control"]) {
+			control = true
 		}
 
-		if (e.key === "Alt" || keyStates["Alt"]) {
-			facing[4] = "y"
+		let alt = false
+		if (keyStates["Alt"]) {
+			alt = true
 		}
+
+		// console.log(facing, control, alt)
 
 		if (e.key === "0" || e.key === "1" || e.key === "2" || e.key === "3"
 			|| e.key === "4" || e.key === "5" || e.key === "6" || e.key === "7"
@@ -726,57 +736,117 @@ window.addEventListener("keydown", (e) => {
 
 			if (facing[1] === "z") {
 				if (facing[3] === "y") {
-					axis = 0
-					if (facing[4] === "x") axis = 1
-					if (facing[4] === "y") axis = 2
+					if (control) axis = 1
+					else if (alt) axis = 2
+					else axis = 0
 				}
 	
 				if (facing[3] === "x") {
-					axis = 1
-					if (facing[4] === "x") axis = 0
+					if (control) axis = 0
+					else if (alt) axis = 2
+					else axis = 1
 				}
 
-				if (facing[0] !== facing[2]) {
+				if (
+					(alt && facing[0] === "+") ||
+					(control && (
+						(facing[2] === "+" && facing[3] === "y") ||
+						(facing[2] === "-" && facing[3] === "x"))
+					) ||
+					(!control && !alt && facing[0] !== facing[2])
+				) {
 					index = cubeDimension - 1 - index
+				}
+
+				if (
+					(alt && facing[0] === "+") ||
+					(control && (
+						(facing[2] === "+" && facing[3] === "x") ||
+						(facing[2] === "-" && facing[3] === "y")
+					)) ||
+					(!control && !alt && facing[0] !== facing[2])
+				) {
 					direction *= -1
 				}
 			}
 
 			if (facing[1] === "x") {
 				if (facing[3] === "y") {
-					axis = 2
+					if (control) axis = 1
+					else if (alt) axis = 0
+					else axis = 2
 				}
 
 				if (facing[3] === "z") {
-					axis = 1
+					if (control) axis = 2
+					else if (alt) axis = 0
+					else axis = 1
 				}
 
-				if (facing[0] === facing[2]) {
+
+				if (
+					(alt && facing[0] === "+") ||
+					(control && (
+						(facing[2] === "+" && facing[3] === "y") ||
+						(facing[2] === "-" && facing[3] === "z"))
+					) ||
+					(!control && !alt && facing[0] === facing[2])
+				) {
 					index = cubeDimension - 1 - index
+				}
+
+				if (
+					(alt && facing[0] === "+") ||
+					(control && (
+						(facing[2] === "+" && facing[3] === "z") ||
+						(facing[2] === "-" && facing[3] === "y"))
+					) ||
+					(!control && !alt && facing[0] === facing[2])
+				) {
 					direction *= -1
 				}
 			}
 
 			if (facing[1] === "y") {
 				if (facing[3] === "z") {
-					axis = 0
+					if (control) axis = 2
+					else if (alt) axis = 1
+					else axis = 0
 				}
 
 				if (facing[3] === "x") {
-					axis = 2
+					if (control) axis = 0
+					else if (alt) axis = 1
+					else axis = 2
 				}
 
 				if (
-					(facing[0] === facing[2] && facing[3] === "x") ||
-					(facing[0] !== facing[2] && facing[3] === "z")
+					(alt && facing[0] === "+") ||
+					(control && facing[2] === "-") ||
+					(!control && !alt && (
+						(facing[0] === "+" && (
+							(facing[2] === "+" && facing[3] === "x") ||
+							(facing[2] === "-" && facing[3] === "z")
+						)) ||
+						(facing[0] === "-" && (
+							(facing[2] === "+" && facing[3] === "z") ||
+							(facing[2] === "-" && facing[3] === "x")
+						))
+					))
 				) {
 					index = cubeDimension - 1 - index
+				}
+
+				if (
+					(alt && facing[0] === "+") ||
+					(control && facing[2] === "+") || 
+					(!control && !alt && (
+						(facing[3] === "x" && facing[0] === facing[2]) ||
+						(facing[3] === "z" && facing[0] !== facing[2])
+					))
+				) {
 					direction *= -1
 				}
-			}
-
-			if (facing[4] === "y") {
-				index = cubeDimension - 1 - index
 			}
 
 			moves.push({
@@ -786,12 +856,10 @@ window.addEventListener("keydown", (e) => {
 			})
 		}
 	}
-	keyStates[e.key] = true
 	
-	if (!(e.key === "F5" || e.key === "F12")) {
+	if (!(keyStates["F5"] || keyStates["F12"])) {
 		e.preventDefault()
 	}
-
 })
 
 
