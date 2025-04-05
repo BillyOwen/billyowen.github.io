@@ -1,0 +1,157 @@
+<html>
+
+    <head>
+
+    <script src="countries.js"></script>
+
+    <script>
+
+        let inputElement = undefined
+        let svgElement = undefined
+        let zoomElement = undefined
+        let scoreElement = undefined
+        let remainingElement = undefined
+    
+        function setScore(countriesBooleans) {
+            let score = 0
+            for (let i = 0; i < countriesBooleans.length; ++i) {
+                if (countriesBooleans[i]) {
+                    score++
+                }
+            }
+
+            scoreElement.textContent = `${score}/${countriesBooleans.length} Countries and Territories`
+
+            remainingElement.textContent = Object.entries(gameState).filter(([_, value]) => !value).map(e =>countries[e[0]].names[0] ).join(", ")
+            
+        }
+
+        window.onload = () => {
+
+            remainingElement = document.getElementById("remaining")
+            scoreElement = document.getElementById("score")
+            setScore(Object.values(gameState))
+
+
+            zoomElement = document.getElementById("zoom")
+
+            for (const key of Object.keys(zoomScales)) {
+                
+                const node = document.createElement("button")
+                node.addEventListener("click", () => {
+                    if (svgElement) {
+                        svgElement.setAttribute("viewBox", zoomScales[key])
+                    }
+                })
+                const textNode = document.createTextNode(key)
+                node.appendChild(textNode)
+
+                zoomElement.appendChild(node)
+            }
+
+
+            svgElement = document.getElementById("svg")
+            svgElement.addEventListener("click", (e) => {
+                console.log(e.target.getAttribute("class"))
+            })
+
+            inputElement = document.getElementById("input")
+            inputElement.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" && svgElement) {
+                    for (const [code, country] of Object.entries(countries)) {
+                        if (country.names.find(e => e.toLowerCase() === inputElement.value.toLowerCase())) {
+                            gameState[code] = true
+                            setScore(Object.values(gameState))
+        
+                            const paths = svgElement.contentDocument.querySelectorAll(`g.${code.toLowerCase()} path, path.${code.toLowerCase()}`)
+                            
+                            for (const pathElement of paths) {
+                                if (pathElement) {
+                                    let colour = "#32a83e"
+                                    if (code === "AQ") {
+                                        colour = "white"
+                                    }
+                                    pathElement.setAttribute("style", `fill: ${colour};`)
+                                }
+                            }
+
+                            inputElement.value = ""
+                            break
+                        }
+                    }
+                }
+            })
+        }
+
+        let gameState = {}
+        for (const country of Object.keys(countries)) {
+            gameState[country] = false
+        }
+    
+        const zoomScales = {
+            "World": "82.992 45.607 2528.5721 1428.3294",
+            "Africa": `800 430 1150 ${1428 / (2528 / 1150)}`,
+            "Asia": `1380 100 1400 ${1428 / (2528 / 1400)}`,
+            "Australia": `2080 780 700 ${1428 / (2528 / 700)}`,
+            "Europe": `1180 180 500 ${1428 / (2528 / 500)}`,
+            "North America": `100 100 1100 ${1428 / (2528 / 1100)}`,
+            "South America": `335 600 1200 ${1428 / (2528 / 1200)}`,
+        }
+
+    </script>
+        <title>Geography</title>
+        <style>
+    
+            .root {
+                margin: auto;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                width: 1400px;
+            }
+        
+            #zoom {
+                display: flex;
+                gap: 5px;
+                margin: 10px;
+            }
+        
+            details {
+                width: 800px;
+            }
+
+              
+              
+            svg {
+            aspect-ratio: 2 / 1;
+            }
+            
+        </style>
+    </head>
+    <body>
+
+        <div class="root">
+            <h1>Geography</h1>
+
+            <input id="input" placeholder="Country or Territory" type="text" />
+        
+            <div id="zoom"></div>
+        
+            <object id="svg" data="world.svg" type="image/svg+xml"></object>
+
+            <object id="svg2" data="http://upload.wikimedia.org/wikipedia/commons/4/4d/BlankMap-World.svg" type="image/svg+xml"></object>
+
+            <div id="score"></div>
+        
+            <details>
+                <summary>Reveal Remaining Countries</summary>
+                <div id="remaining"></div>
+            </details>
+            
+        
+        </div>
+    </body>
+    
+    
+
+</html>
