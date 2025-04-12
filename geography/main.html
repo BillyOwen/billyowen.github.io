@@ -8,10 +8,34 @@
 
         let inputElement = undefined
         let svgElement = undefined
-        let zoomElement = undefined
+        let presetZoomContainer = undefined
         let scoreElement = undefined
         let remainingElement = undefined
-    
+        const pan = {
+            x: 0,
+            y: 0,
+            isPanning: false,
+        }
+
+        const viewBox = {
+            x: 0,
+            y: 0,
+            width: 2754,
+            height: 1398, 
+        }
+
+        function setViewBox(x, y, size) {
+            
+            viewBox.x = x,
+            viewBox.y = y
+            viewBox.width = size
+            viewBox.height = size * (1398 / 2754)
+
+            if (svgElement) {
+                svgElement.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`)
+            }
+        }
+
         function setScore(countriesBooleans) {
             let score = 0
             for (let i = 0; i < countriesBooleans.length; ++i) {
@@ -21,9 +45,50 @@
             }
 
             scoreElement.textContent = `${score}/${countriesBooleans.length} Countries and Territories`
+            remainingElement.textContent = Object.entries(gameState).filter(([_, value]) => !value).map(e =>countries[e[0]].names[0] ).join(", ")   
+        }
 
-            remainingElement.textContent = Object.entries(gameState).filter(([_, value]) => !value).map(e =>countries[e[0]].names[0] ).join(", ")
-            
+        const zoomScales = {
+            "World": {
+                x: 0,
+                y: 0,
+                size: 2754,
+            },
+            "Africa": {
+                x: 800,
+                y: 355,
+                size: 1300,
+            },
+            "Asia": {
+                x: 1380,
+                y: 50,
+                size: 1500,
+            },
+            "Australia": {
+                x: 2080,
+                y: 660,
+                size: 990,
+            },
+            "Europe": {
+                x: 1180,
+                y: 100,
+                size: 600,
+            },
+            "North America": {
+                x: 100,
+                y: 5,
+                size: 1250,
+            },
+            "South America": {
+                x: 335,
+                y: 580,
+                size: 1200,
+            },
+            "Caribbean": {
+                x: 600,
+                y: 450,
+                size: 320,
+            },
         }
 
         window.onload = () => {
@@ -32,27 +97,68 @@
             scoreElement = document.getElementById("score")
             setScore(Object.values(gameState))
 
-
-            zoomElement = document.getElementById("zoom")
+            presetZoomContainer = document.getElementById("preset-zoom-container")
 
             for (const key of Object.keys(zoomScales)) {
                 
                 const node = document.createElement("button")
                 node.addEventListener("click", () => {
-                    if (svgElement) {
-                        svgElement.setAttribute("viewBox", zoomScales[key])
-                    }
+                    setViewBox(zoomScales[key].x, zoomScales[key].y, zoomScales[key].size)
                 })
                 const textNode = document.createTextNode(key)
                 node.appendChild(textNode)
 
-                zoomElement.appendChild(node)
+                presetZoomContainer.appendChild(node)
             }
 
-
             svgElement = document.getElementById("svg")
-            svgElement.addEventListener("click", (e) => {
-                console.log(e.target.getAttribute("class"))
+            svgElement.addEventListener("wheel", (e) => {
+                const rect = svgElement.getBoundingClientRect()
+
+                const mousePos = {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                }
+
+                let zoom = 0.5
+                if (e.deltaY > 0) {
+                    zoom = 1.5
+                }
+
+                const size = viewBox.width * zoom
+
+                setViewBox(
+                    (mousePos.x / rect.width) * viewBox.width + viewBox.x - size * (mousePos.x / rect.width),
+                    (mousePos.y / rect.height) * viewBox.height + viewBox.y - size * (mousePos.y / rect.height) * (1398 / 2754),
+                    size
+                )
+            })
+            svgElement.addEventListener("mousedown", (e) => {
+                pan.isPanning = true                
+            })
+            svgElement.addEventListener("mousemove", (e) => {
+                
+                const rect = svgElement.getBoundingClientRect()
+                const mousePos = {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                }
+
+                if (pan.isPanning) {
+                    setViewBox(
+                        viewBox.x + ((pan.x / rect.width) * viewBox.width) - (mousePos.x / rect.width) * viewBox.width,
+                        viewBox.y + ((pan.y / rect.height) * viewBox.height) - (mousePos.y / rect.height) * viewBox.height,
+                        viewBox.width
+                    )
+                }
+                pan.x = mousePos.x
+                pan.y = mousePos.y
+            })
+            svgElement.addEventListener("mouseleave", (e) => {
+                pan.isPanning = false
+            })
+            svgElement.addEventListener("mouseup", (e) => {
+                pan.isPanning = false
             })
 
             inputElement = document.getElementById("input")
@@ -67,6 +173,7 @@
                             
                             for (const pathElement of paths) {
                                 if (pathElement) {
+                                    console.log(pathElement.getAttribute("class"))
                                     let colour = "#32a83e"
                                     if (code === "AQ") {
                                         colour = "white"
@@ -87,16 +194,6 @@
         for (const country of Object.keys(countries)) {
             gameState[country] = false
         }
-    
-        const zoomScales = {
-            "World": "82.992 0 2528.5721 1428.3294",
-            "Africa": `800 355 1150 ${1428 / (2528 / 1150)}`,
-            "Asia": `1380 50 1400 ${1428 / (2528 / 1400)}`,
-            "Australia": `2080 700 700 ${1428 / (2528 / 700)}`,
-            "Europe": `1180 120 500 ${1428 / (2528 / 500)}`,
-            "North America": `100 5 0 1100 ${1428 / (2528 / 1100)}`,
-            "South America": `335 550 1200 ${1428 / (2528 / 1200)}`,
-        }
 
     </script>
         <title>Geography</title>
@@ -107,11 +204,7 @@
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                width: 1400px;
-
-                svg {
-                    aspect-ratio: 2 / 1;
-                }
+                max-width: 1400px;
             }
         
             #zoom {
@@ -133,10 +226,10 @@
 
             <input id="input" placeholder="Country or Territory" type="text" />
         
-            <div id="zoom"></div>
+            <div id="preset-zoom-container"></div>
         
             <!-- <object id="svg" data="world.svg" type="image/svg+xml"></object> -->
-            <svg id="svg" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="82.992 0 2528.5721 1428.3294" >
+            <svg id="svg" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 2754 1398" >
                 <title>World Map</title>
                 <style id="style_css_sheet" type="text/css">
 
